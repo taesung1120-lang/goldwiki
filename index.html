@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>국제 금시세 자동 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#141210; --panel:#1c1914; --panel-edge:#2e2820;
+    --gold:#c9a24b; --gold-dim:#8a6d3b; --ivory:#efe8d8;
+    --ink:#2b2620; --paper:#e9e1cd; --paper-edge:#c9bd9e;
+    --red:#c1443b; --blue:#3b6ea5; --muted:#8f8672;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ivory);font-family:'Noto Sans KR',sans-serif;padding:26px 16px 60px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--gold-dim);padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:8px;}
+  .header h1{font-family:'Noto Serif KR',serif;font-weight:900;font-size:24px;margin:0;display:flex;align-items:center;gap:10px;}
+  .header h1 .glyph{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:2px solid var(--gold);border-radius:3px;color:var(--gold);font-size:18px;font-weight:900;}
+  .header .meta{font-family:'Space Mono',monospace;font-size:12px;color:var(--gold);text-align:right;}
+  .header .meta .sub{color:var(--muted);font-family:'Noto Sans KR',sans-serif;font-size:11px;}
+
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+  @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr);}}
+  .card{background:var(--panel);border:1px solid var(--panel-edge);border-radius:6px;padding:16px 14px;}
+  .card .k{font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;font-family:'Noto Serif KR',serif;}
+  .card .v{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--gold);}
+  .card .v .unit{font-size:12px;color:var(--muted);font-family:'Noto Sans KR',sans-serif;margin-left:4px;}
+  .card .d{font-family:'Space Mono',monospace;font-size:12px;margin-top:6px;}
+  .d.up{color:var(--red);} .d.down{color:var(--blue);} .d.flat{color:var(--muted);}
+
+  details.settings{background:var(--paper);color:var(--ink);border-radius:4px;margin-bottom:22px;border-left:5px solid var(--red);}
+  details.settings summary{padding:14px 18px;cursor:pointer;font-family:'Noto Serif KR',serif;font-weight:700;font-size:14px;}
+  .settings-body{padding:0 18px 18px;}
+  .settings-body .hint{font-size:12px;color:#5a5240;margin-bottom:10px;line-height:1.6;}
+  .settings-body label{font-size:12px;font-weight:700;margin-right:8px;}
+  .settings-body input{padding:6px 8px;border:1px solid var(--paper-edge);border-radius:3px;background:#fbf8ef;font-family:'Space Mono',monospace;font-size:14px;width:80px;}
+
+  .retail-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px;}
+  @media(max-width:600px){.retail-row{grid-template-columns:1fr;}}
+  .retail-card{background:rgba(201,162,75,0.08);border:1px solid var(--panel-edge);border-radius:6px;padding:14px 16px;}
+  .retail-card .k{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .retail-card .v{font-family:'Space Mono',monospace;font-size:19px;font-weight:700;color:var(--ivory);}
+
+  .section-title{font-family:'Noto Serif KR',serif;font-weight:700;font-size:16px;color:var(--gold);margin:0 0 12px;}
+  .chart-box{background:var(--panel);border:1px solid var(--panel-edge);border-radius:6px;padding:18px;margin-bottom:22px;height:280px;}
+
+  table.hist{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--panel-edge);border-radius:6px;overflow:hidden;font-family:'Space Mono',monospace;font-size:13px;margin-bottom:14px;}
+  table.hist th, table.hist td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--panel-edge);}
+  table.hist th{background:rgba(201,162,75,0.08);color:var(--gold);font-family:'Noto Sans KR',sans-serif;font-size:11px;font-weight:700;}
+  table.hist td.d-up{color:var(--red);} table.hist td.d-down{color:var(--blue);}
+
+  .footnote{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;border-top:1px solid var(--panel-edge);padding-top:12px;}
+  .status{font-size:12px;color:var(--muted);margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1><span class="glyph">金</span>국제 금시세 자동 대시보드</h1>
+    <div class="meta">
+      <div id="lastUpdate">-</div>
+      <div class="sub">매일 자동 갱신 (GitHub Actions)</div>
+    </div>
+  </div>
+
+  <div class="status" id="statusMsg">데이터를 불러오는 중입니다...</div>
+
+  <div class="cards" id="cards"></div>
+
+  <details class="settings">
+    <summary>▍참고 소매가 마진율 설정 (최초 1회만 조정하면 됩니다)</summary>
+    <div class="settings-body">
+      <div class="hint">국제 시세 환산가에 통상적인 국내 금은방 매입/매도 마진율(%)을 반영해 참고 소매가를 계산합니다. 실제 매장 시세와는 차이가 있을 수 있어 참고용으로만 활용하세요.</div>
+      <label>매입 마진(%)</label><input type="number" id="marginBuy" value="-3" step="0.5">
+      <label>매도 마진(%)</label><input type="number" id="marginSell" value="12" step="0.5">
+      <button onclick="applyMargins()" style="margin-left:10px;padding:7px 14px;border:none;border-radius:3px;background:var(--ink);color:var(--paper);font-weight:700;cursor:pointer;">적용</button>
+    </div>
+  </details>
+
+  <div class="retail-row" id="retailRow"></div>
+
+  <div class="section-title">국제시세 환산가(원/g) 추이</div>
+  <div class="chart-box"><canvas id="trendChart"></canvas></div>
+
+  <div class="section-title">최근 이력</div>
+  <table class="hist" id="histTable"></table>
+
+  <div class="footnote">
+    ※ 이 대시보드는 국제 금 현물시세(XAU/USD)와 원·달러 환율을 매일 자동으로 가져와 계산한 <strong>환산 참고가</strong>입니다.
+    특정 금은방의 실제 고시 시세를 스크래핑한 것이 아니며, 실제 매장 매입·매도가와는 차이가 날 수 있습니다.
+    기사 작성 시 정확한 수치가 필요하면 한국금거래소 등 공식 고시가를 함께 확인해 주세요.
+    데이터 출처: metals-api.com(금시세), frankfurter.app(환율, ECB 기준).
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const OZ_TO_GRAM = 31.1034768;
+let history = [];
+
+function fmt(n, digits){
+  if(n===undefined||n===null||isNaN(n)) return '-';
+  return Number(n).toLocaleString('en-US', {maximumFractionDigits: digits===undefined?0:digits});
+}
+function fmtWon(num){
+  if(num===undefined||num===null||isNaN(num)) return '-';
+  num = Math.round(num);
+  if(num < 10000) return num + '원';
+  const man = Math.floor(num/10000);
+  const rest = num % 10000;
+  return man + '만' + (rest > 0 ? ' ' + rest : '') + '원';
+}
+function labelFor(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const days=['일','월','화','수','목','금','토'];
+  return (d.getMonth()+1)+'.'+d.getDate()+'('+days[d.getDay()]+')';
+}
+function deltaSpan(cur, prev, unit){
+  if(cur===undefined||prev===undefined||isNaN(cur)||isNaN(prev)) return '<span class="d flat">전일 데이터 없음</span>';
+  const diff = cur - prev;
+  if(Math.abs(diff) < 0.001) return '<span class="d flat">보합</span>';
+  const cls = diff>0?'up':'down';
+  const arrow = diff>0?'▲':'▼';
+  return '<span class="d '+cls+'">'+arrow+' '+fmt(Math.abs(diff),2)+(unit||'')+'</span>';
+}
+
+function getMargins(){
+  const b = parseFloat(localStorage.getItem('marginBuy'));
+  const s = parseFloat(localStorage.getItem('marginSell'));
+  return { buy: isNaN(b) ? -3 : b, sell: isNaN(s) ? 12 : s };
+}
+function applyMargins(){
+  localStorage.setItem('marginBuy', $('marginBuy').value);
+  localStorage.setItem('marginSell', $('marginSell').value);
+  render();
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('./data/history.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('데이터 파일을 찾을 수 없습니다');
+    history = await res.json();
+    $('statusMsg').textContent = '';
+  }catch(e){
+    $('statusMsg').textContent = '⚠ data/history.json을 아직 찾을 수 없습니다. GitHub Actions가 최초 1회 실행된 뒤부터 데이터가 쌓입니다. (Actions 탭에서 수동 실행도 가능)';
+  }
+}
+
+function renderCards(){
+  const sorted = [...history].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const latest = sorted[sorted.length-1];
+  const prev = sorted[sorted.length-2];
+  const box = $('cards');
+  if(!latest){ box.innerHTML=''; return; }
+  box.innerHTML = `
+    <div class="card">
+      <div class="k">국제 금시세</div>
+      <div class="v">${fmt(latest.goldUsdOz,2)}<span class="unit">USD/oz</span></div>
+      ${deltaSpan(latest.goldUsdOz, prev && prev.goldUsdOz, '달러')}
+    </div>
+    <div class="card">
+      <div class="k">원·달러 환율</div>
+      <div class="v">${fmt(latest.usdKrw,2)}<span class="unit">원</span></div>
+      ${deltaSpan(latest.usdKrw, prev && prev.usdKrw, '원')}
+    </div>
+    <div class="card">
+      <div class="k">국제시세 환산가</div>
+      <div class="v">${fmt(latest.krwPerGram,0)}<span class="unit">원/g</span></div>
+      ${deltaSpan(latest.krwPerGram, prev && prev.krwPerGram, '원')}
+    </div>
+    <div class="card">
+      <div class="k">환산가(한 돈 · 3.75g)</div>
+      <div class="v" style="font-size:18px;">${fmtWon(latest.krwPerGram*3.75)}</div>
+      <div class="d flat">3.75g 기준</div>
+    </div>
+  `;
+}
+
+function renderRetail(){
+  const sorted = [...history].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const latest = sorted[sorted.length-1];
+  const box = $('retailRow');
+  if(!latest){ box.innerHTML=''; return; }
+  const m = getMargins();
+  $('marginBuy').value = m.buy;
+  $('marginSell').value = m.sell;
+  const buyG = latest.krwPerGram * (1 + m.buy/100);
+  const sellG = latest.krwPerGram * (1 + m.sell/100);
+  box.innerHTML = `
+    <div class="retail-card">
+      <div class="k">참고 매입가 (내가 팔 때, 3.75g)</div>
+      <div class="v">${fmtWon(buyG*3.75)}</div>
+    </div>
+    <div class="retail-card">
+      <div class="k">참고 매도가 (내가 살 때, 3.75g)</div>
+      <div class="v">${fmtWon(sellG*3.75)}</div>
+    </div>
+  `;
+}
+
+let chartInstance = null;
+function renderChart(){
+  const sorted = [...history].sort((a,b)=> a.date < b.date ? -1 : 1).slice(-30);
+  const labels = sorted.map(h=>labelFor(h.date));
+  const data = sorted.map(h=>h.krwPerGram);
+  const ctx = $('trendChart').getContext('2d');
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{
+      label:'환산가(원/g)', data,
+      borderColor:'#c9a24b', backgroundColor:'rgba(201,162,75,0.12)',
+      pointBackgroundColor:'#c9a24b', tension:0.25, fill:true, borderWidth:2,
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{ color:'#8f8672', font:{family:"'Space Mono', monospace", size:10} }, grid:{ color:'rgba(255,255,255,0.04)' } },
+        y:{ ticks:{ color:'#8f8672', font:{family:"'Space Mono', monospace", size:11}, callback:v=>fmt(v) }, grid:{ color:'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+function renderTable(){
+  const sorted = [...history].sort((a,b)=> a.date < b.date ? -1 : 1).slice(-14).reverse();
+  let html = '<tr><th>날짜</th><th>국제시세(USD/oz)</th><th>환율(원)</th><th>환산가(원/g)</th><th>등락</th></tr>';
+  sorted.forEach((h,i)=>{
+    let diffCell = '-';
+    const nextOlder = sorted[i+1];
+    if(nextOlder){
+      const diff = h.krwPerGram - nextOlder.krwPerGram;
+      const cls = diff>0?'d-up':diff<0?'d-down':'';
+      const arrow = diff>0?'▲':diff<0?'▼':'—';
+      diffCell = '<td class="'+cls+'">'+arrow+' '+fmt(Math.abs(diff),0)+'</td>';
+    } else {
+      diffCell = '<td>-</td>';
+    }
+    html += '<tr><td>'+labelFor(h.date)+'</td><td>'+fmt(h.goldUsdOz,2)+'</td><td>'+fmt(h.usdKrw,2)+'</td><td>'+fmt(h.krwPerGram,0)+'</td>'+diffCell+'</tr>';
+  });
+  $('histTable').innerHTML = html;
+}
+
+function render(){
+  renderCards();
+  renderRetail();
+  renderChart();
+  renderTable();
+  const sorted = [...history].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const latest = sorted[sorted.length-1];
+  $('lastUpdate').textContent = latest ? '최근 갱신: '+latest.date : '데이터 없음';
+}
+
+(async function init(){
+  await loadData();
+  render();
+})();
+</script>
+</body>
+</html>
